@@ -5,7 +5,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="description" content="QR Studio — generate beautiful QR codes instantly in your browser.">
 <title>QR Studio — Make it scannable.</title>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+<script>
+(function(){
+  function load(src){return new Promise(function(resolve,reject){var s=document.createElement('script');s.src=src;s.onload=function(){resolve()};s.onerror=function(){reject(new Error('QR library failed to load'))};document.head.appendChild(s)})}
+  window.qrReady=load('https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js').catch(function(){return load('https://unpkg.com/qrcode@1.5.4/build/qrcode.min.js')});
+})();
+</script>
 <style>
 :root{--bg:#08090b;--panel:#111318;--line:#252832;--muted:#8d95a3;--text:#f5f7fa;--accent:#fff;--shadow:0 24px 70px rgba(0,0,0,.35)}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% -10%,#1c2028 0,#0d0f13 34%,var(--bg) 65%);color:var(--text);font:15px/1.6 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -46,14 +51,22 @@ const input=document.querySelector('#content'),preview=document.querySelector('#
 let canvas=null;
 function updateCount(){count.textContent=input.value.length+' / 2000'}
 function showToast(){toast.classList.add('show');clearTimeout(showToast.t);showToast.t=setTimeout(()=>toast.classList.remove('show'),1500)}
-function render(){
+async function render(){
  const value=input.value.trim(); preview.innerHTML=''; canvas=null; download.disabled=true;
  if(!value){preview.innerHTML='<div class="empty">Enter some text to generate a QR code.</div>';return}
- canvas=document.createElement('canvas');preview.appendChild(canvas);
- QRCode.toCanvas(canvas,value,{width:280,margin:2,errorCorrectionLevel:'H',color:{dark:'#090a0d',light:'#ffffff'}},err=>{
-   if(err){preview.innerHTML='<div class="empty">Could not generate this QR code.</div>';canvas=null;return}
-   download.disabled=false;showToast();
- });
+ preview.innerHTML='<div class="empty">Generating…</div>';
+ try{
+   await window.qrReady;
+   if(typeof QRCode==='undefined') throw new Error('QR library unavailable');
+   canvas=document.createElement('canvas'); preview.innerHTML=''; preview.appendChild(canvas);
+   QRCode.toCanvas(canvas,value,{width:280,margin:2,errorCorrectionLevel:'H',color:{dark:'#090a0d',light:'#ffffff'}},err=>{
+     if(err){preview.innerHTML='<div class="empty">Could not generate this QR code.</div>';canvas=null;return}
+     download.disabled=false;showToast();
+   });
+ }catch(e){
+   preview.innerHTML='<div class="empty">QR generator could not load. Check your internet connection and try again.</div>';
+   canvas=null;
+ }
 }
 input.addEventListener('input',updateCount);generate.addEventListener('click',render);
 clearBtn.addEventListener('click',()=>{input.value='';updateCount();render();input.focus()});
